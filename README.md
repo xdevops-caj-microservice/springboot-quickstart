@@ -92,10 +92,126 @@ server:
   port: 8081
 ```
 
-### Input validation
-
-
 ### Error Handling
+
+1. Define customized exception classes (subclass of `RuntimeException`) under `exception` package:
+- ResourceAlreadyExistsException
+- ResourceNotFoundException
+
+
+**ResourceAlreadyExistsException.java**:
+```java
+public class ResourceNotFoundException extends RuntimeException {
+    private String message;
+
+    public ResourceNotFoundException() {
+    }
+
+    public ResourceNotFoundException(String message) {
+        super(message);
+        this.message = message;
+    }
+}
+```
+
+**ResourceAlreadyExistsException.java**
+```java
+public class ResourceNotFoundException extends RuntimeException {
+    private String message;
+
+    public ResourceNotFoundException() {
+    }
+
+    public ResourceNotFoundException(String message) {
+        super(message);
+        this.message = message;
+    }
+}
+```
+
+2. Throws ResourceAlreadyExistsException in creation methods in Service class.
+```java
+    public Department saveDepartment(Department department) {
+        if (departmentRepository.existsById(department.getDepartmentId())) {
+            throw new ResourceAlreadyExistsException();
+        }
+        return departmentRepository.save(department);
+    }
+```
+
+3. Throws ResourceNotFoundException in query methods in Service class.
+```java
+    public Department findDepartmentById(Long id) {
+        if (departmentRepository.findById(id).isEmpty()) {
+            throw new ResourceNotFoundException();
+        }
+        return departmentRepository.findById(id).get();
+    }
+```
+
+4. Define global exception hanlder via `@ControlAdvice` to hanlde exceptions
+**GlobalExceptionHandler.java**
+```java
+@ControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler(ResourceAlreadyExistsException.class)
+    public ResponseEntity handleResourceAlreadyExistsException(ResourceAlreadyExistsException e) {
+        return new ResponseEntity("Resource already exits", HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity handleResourceNotFoundException(ResourceNotFoundException e) {
+        return new ResponseEntity("Resource not found", HttpStatus.NOT_FOUND);
+    }
+}
+```
+
+
+References:
+- https://springframework.guru/exception-handling-in-spring-boot-rest-api/
+
+### Bean validation
+
+1. Import `spring-boot-starter-validation` dependency
+```xml
+  <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+  </dependency>
+```
+
+2. Add validation annotations for the fields in the API resource class (for demo, API resource is same as the Entity class)
+```java
+    @NotBlank(message = "Department name is mandatory")
+    private String departmentName;
+```
+
+3. Add `@Valid` annotion for method arguments in the Controller class
+```java
+    @PostMapping("")
+    public Department saveDepartment(@RequestBody @Valid Department department) {
+        log.info("Call saveDepartment() in DepartmentController...");
+        return departmentService.saveDepartment(department);
+    }
+```
+
+4. Add the `MethodArgumentNotValidException` exception handler in the `GlobalExceptionHandler` class (see previous "Error Handling")
+```java
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
+        Map<String, String> errors = new HashMap<>();
+        e.getBindingResult().getFieldErrors().forEach(error ->
+                errors.put(error.getField(), error.getDefaultMessage()));
+        return new ResponseEntity(errors, HttpStatus.BAD_REQUEST);
+    }
+```
+
+References:
+- https://springframework.guru/bean-validation-in-spring-boot/
+- https://springframework.guru/exception-handling-in-spring-boot-rest-api/
+- https://mkyong.com/spring-boot/spring-rest-validation-example/
+
+
 
 #### Resource not found
 
