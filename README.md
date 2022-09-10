@@ -77,7 +77,7 @@ Demp project:
 ## Development tips
 
 
-## Use Lombok to simplify coding
+### Use Lombok to simplify coding
 
 See [Lombok](https://projectlombok.org/features/) documentation.
 
@@ -101,15 +101,9 @@ server:
 
 **ResourceAlreadyExistsException.java**:
 ```java
-public class ResourceNotFoundException extends RuntimeException {
-    private String message;
-
-    public ResourceNotFoundException() {
-    }
-
-    public ResourceNotFoundException(String message) {
-        super(message);
-        this.message = message;
+public class ResourceAlreadyExistsException extends RuntimeException {
+    public ResourceAlreadyExistsException(Long id) {
+        super("Resource already exists via id: " + id);
     }
 }
 ```
@@ -117,60 +111,91 @@ public class ResourceNotFoundException extends RuntimeException {
 **ResourceAlreadyExistsException.java**
 ```java
 public class ResourceNotFoundException extends RuntimeException {
-    private String message;
-
-    public ResourceNotFoundException() {
-    }
-
-    public ResourceNotFoundException(String message) {
-        super(message);
-        this.message = message;
+    public ResourceNotFoundException(Long id) {
+        super("Resource not found via id: " + id);
     }
 }
 ```
 
-2. Throws ResourceAlreadyExistsException in creation methods in Service class.
+2. Throws `ResourceAlreadyExistsException` in creation methods in Service class.
 ```java
     public Department saveDepartment(Department department) {
-        if (departmentRepository.existsById(department.getDepartmentId())) {
-            throw new ResourceAlreadyExistsException();
+        if (department.getDepartmentId() != null &&
+                departmentRepository.existsById(department.getDepartmentId())) {
+            throw new ResourceAlreadyExistsException(department.getDepartmentId());
         }
         return departmentRepository.save(department);
     }
 ```
 
-3. Throws ResourceNotFoundException in query methods in Service class.
+3. Throws `ResourceNotFoundException` in query methods in Service class.
 ```java
     public Department findDepartmentById(Long id) {
-        if (departmentRepository.findById(id).isEmpty()) {
-            throw new ResourceNotFoundException();
-        }
-        return departmentRepository.findById(id).get();
+        return departmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(id));
     }
 ```
 
 4. Define global exception hanlder via `@ControlAdvice` to hanlde exceptions
+
 **GlobalExceptionHandler.java**
 ```java
 @ControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ResourceAlreadyExistsException.class)
-    public ResponseEntity handleResourceAlreadyExistsException(ResourceAlreadyExistsException e) {
-        return new ResponseEntity("Resource already exits", HttpStatus.CONFLICT);
+    public void handleResourceAlreadyExists(HttpServletResponse response) throws IOException {
+        response.sendError(HttpStatus.CONFLICT.value());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity handleResourceNotFoundException(ResourceNotFoundException e) {
-        return new ResponseEntity("Resource not found", HttpStatus.NOT_FOUND);
+    public void handleResourceNotFound(HttpServletResponse response) throws IOException {
+        response.sendError(HttpStatus.NOT_FOUND.value());
     }
 }
 ```
 
+ResourceAlreadyExists error response:
+```json
+{
+    "timestamp": "2022-09-10T10:54:04.877+00:00",
+    "status": 409,
+    "error": "Conflict",
+    "message": "Resource already exists via id: 1",
+    "path": "/departments"
+}
+```
+
+ResourceNotFound error response:
+```json
+{
+    "timestamp": "2022-09-10T10:55:52.020+00:00",
+    "status": 404,
+    "error": "Not Found",
+    "message": "Resource not found via id: 2",
+    "path": "/departments/2"
+}
+```
+
+
+
+
+5. Remove `trace` info in error response for security concerns if use Spring Boot dev tools
+
+**application.yaml***
+```yaml
+server:
+  error:
+    include-stacktrace: never
+```
 
 References:
+- https://mkyong.com/spring-boot/spring-rest-error-handling-example/
 - https://springframework.guru/exception-handling-in-spring-boot-rest-api/
+- https://stackoverflow.com/questions/54827407/remove-trace-field-from-responsestatusexception
 
 ### Bean validation
+
+#### Validating a Request Body
 
 1. Import `spring-boot-starter-validation` dependency
 ```xml
@@ -195,15 +220,46 @@ References:
     }
 ```
 
-4. Add the `MethodArgumentNotValidException` exception handler in the `GlobalExceptionHandler` class (see previous "Error Handling")
+Notes:
+> Use `@Valid` on Complex Types
+If the Input class contains a field with another complex type that should be validated, this field, too, needs to be annotated with `@Valid`.
+
+4. Add the `MethodArgumentNotValidException` exception handler method in the `GlobalExceptionHandler` class (see previous "Error Handling")
 ```java
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
-        Map<String, String> errors = new HashMap<>();
-        e.getBindingResult().getFieldErrors().forEach(error ->
-                errors.put(error.getField(), error.getDefaultMessage()));
-        return new ResponseEntity(errors, HttpStatus.BAD_REQUEST);
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+                                 HttpHeaders headers,
+                                 HttpStatus status, WebRequest request) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", new Date());
+        body.put("status", status.value());
+        body.put("error", status.getReasonPhrase());
+        body.put("message", "Validation failure");
+
+        List<String> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(x -> x.getDefaultMessage())
+                .collect(Collectors.toList());
+
+        body.put("errors", errors);
+
+        return new ResponseEntity<>(body, headers, status);
     }
+```
+
+Validation failure error response:
+```json
+{
+    "timestamp": "2022-09-10T11:02:56.353+00:00",
+    "status": 400,
+    "error": "Bad Request",
+    "message": "Validation failure",
+    "errors": [
+        "Department code is mandatory",
+        "Department address is mandatory"
+    ]
+}
 ```
 
 References:
@@ -212,8 +268,54 @@ References:
 - https://mkyong.com/spring-boot/spring-rest-validation-example/
 
 
+#### Validating Path Variables
 
-#### Resource not found
+1. Add `@Validated` annotaion in class level for Controller class
+
+```java
+@RestController
+@RequestMapping("/departments")
+@Validated
+@Slf4j
+public class DepartmentController {
+  // ...
+}
+```
+
+2. Add validation annotations (e.g. `@Min`) for path variables
+
+```java
+    @GetMapping("/{id}")
+    public Department findDepartmentById(@PathVariable @Min(1) Long id) {
+        log.info("Call findDepartmentById() in DepartmentController...");
+        return departmentService.findDepartmentById(id);
+    }
+```
+
+3. Add the `ConstraintViolationException` exception handler method in the `GlobalExceptionHandler` class (see previous "Error Handling")
+
+```java
+    @ExceptionHandler(ConstraintViolationException.class)
+    public void handleConstraintViolationException(HttpServletResponse response) throws IOException {
+        response.sendError(HttpStatus.BAD_REQUEST.value());
+    }
+```
+
+Validation failure error response:
+```json
+{
+    "timestamp": "2022-09-10T11:05:11.534+00:00",
+    "status": 400,
+    "error": "Bad Request",
+    "message": "findDepartmentById.id: 最小不能小于1",
+    "path": "/departments/0"
+}
+```
+
+#### Validaing via a custom validator
+
+TBC
+
 
 
 ### Unfiy API response
