@@ -46,7 +46,7 @@ Support both yaml and properties.
 
 ### DDD project structure
 
-TBC
+See [ddd-code-structure](https://github.com/xdevops-caj-ddd/ddd-building-blocks/tree/main/ddd-code-structure)
 
 
 ## Development flow
@@ -66,7 +66,7 @@ Controller -> Service -> Repository
 ```
 
 Demp project:
-- 
+- [department-service](https://github.com/xdevops-caj-microservice/dcb-sb-ms-example/tree/main/department-service)
 
 ## Run Spring Boot application
 
