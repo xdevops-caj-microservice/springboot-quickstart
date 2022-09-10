@@ -54,7 +54,7 @@ See [ddd-code-structure](https://github.com/xdevops-caj-ddd/ddd-building-blocks/
 ### Simple CRUD project development flow
 
 1. Create an Entity class with `@Entity` annotation
-2. Create an Repository interface with `@Repository` annotation and extends `JpaRepository<T, Long>`
+2. Create an Repository interface with `@Repository` annotation and extends `JpaRepository<T, ID>`
 3. Create a Service class with `@Service` annotation
 4. Create a Controller class with `@RestController` annotation
 5. Implement APIs in the Controller class for each API endpoint
@@ -74,17 +74,19 @@ Demp project:
 - Run `mvn spring-boot:run`
 
 
-## Development tips
+## References
+
+- https://mkyong.com/tutorials/spring-boot-tutorials/
 
 
-### Use Lombok to simplify coding
+## Use Lombok to simplify coding
 
 See [Lombok](https://projectlombok.org/features/) documentation.
 
 Other references:
 - [A Complete Guide to Lombok](https://auth0.com/blog/a-complete-guide-to-lombok/)
 
-### Customize servcie port
+## Customize servcie port
 
 Configure a customized service port (default is `8080`) in `application.yaml`:
 ```yaml
@@ -92,7 +94,13 @@ server:
   port: 8081
 ```
 
-### Error Handling
+## Build REST API with Spring Boot
+
+References:
+- https://spring.io/guides/tutorials/rest/
+- https://swagger.io/resources/articles/best-practices-in-api-design/
+
+## Error Handling
 
 1. Define customized exception classes (subclass of `RuntimeException`) under `exception` package:
 - ResourceAlreadyExistsException
@@ -193,9 +201,9 @@ References:
 - https://springframework.guru/exception-handling-in-spring-boot-rest-api/
 - https://stackoverflow.com/questions/54827407/remove-trace-field-from-responsestatusexception
 
-### Bean validation
+## Data validation
 
-#### Validating a Request Body
+### Validating a Request Body
 
 1. Import `spring-boot-starter-validation` dependency
 ```xml
@@ -263,12 +271,13 @@ Validation failure error response:
 ```
 
 References:
+- https://mkyong.com/spring-boot/spring-rest-validation-example/
 - https://springframework.guru/bean-validation-in-spring-boot/
 - https://springframework.guru/exception-handling-in-spring-boot-rest-api/
-- https://mkyong.com/spring-boot/spring-rest-validation-example/
+- https://reflectoring.io/bean-validation-with-spring-boot/
 
 
-#### Validating Path Variables
+### Validating Path Variables
 
 1. Add `@Validated` annotaion in class level for Controller class
 
@@ -312,13 +321,18 @@ Validation failure error response:
 }
 ```
 
-#### Validaing via a custom validator
+### Validaing via a custom validator
 
 TBC
 
 
+## Use contuctor over autowired
 
-### Unfiy API response
+## Standardlize API response
+
+## Make Restful API with Spring Hateoas
+
+TBC
 
 
 
