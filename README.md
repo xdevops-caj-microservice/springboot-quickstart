@@ -326,13 +326,43 @@ Validation failure error response:
 TBC
 
 
-## Use contuctor over autowired
+## Use contuctor injection over autowired
+
+References:
+- https://reflectoring.io/constructor-injection/
 
 ## Standardlize API response
 
 ## Make Restful API with Spring Hateoas
 
 TBC
+
+## Change the context path
+
+Default context path is `/`.
+
+Change the context path in `application.yaml`:
+```yaml
+server:
+  contextPath: /hello
+```
+
+## Multi-profiles configuration
+
+1. `application.yaml`
+2. `application-{profile}.yaml`, profile normally is for environment:
+    - local
+    - dev
+    - test
+    - prod
+
+Spring Boot, the default profile is `default`, use `spring.profiles.active={profile}` to set the active profile.
+
+
+References
+- https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.external-config
+
+## WebFlux for reactive programing ?
 
 
 
