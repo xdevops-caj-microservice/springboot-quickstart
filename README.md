@@ -364,6 +364,13 @@ References
 
 ## WebFlux for reactive programing ?
 
+## REST API doc with Swagger
+
+## Health check via Spring Boot actuator
+
+
+## Complex query in JPA
+
 
 
 
